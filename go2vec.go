@@ -12,9 +12,9 @@ import (
 	"strings"
 )
 
-type WordDistance struct {
+type WordSimilarity struct {
 	Word     string
-	Distance float32
+	Similarity float32
 }
 
 type Vector []float32
@@ -72,10 +72,10 @@ func main() {
 
 		line = strings.TrimSpace(line)
 
-		results, err := Distance(vecs, line, 10)
+		results, err := Similarity(vecs, line, 10)
 
-		for _, wordDistance := range results {
-			fmt.Println(wordDistance.Word, wordDistance.Distance)
+		for _, wordSimilarity := range results {
+			fmt.Println(wordSimilarity.Word, wordSimilarity.Similarity)
 		}
 	}
 }
@@ -90,7 +90,7 @@ func dotProduct(v, w []float32) float32 {
 	return sum
 }
 
-func Analogy(vecs map[string]Vector, word1, word2, word3 string, limit int) ([]WordDistance, error) {
+func Analogy(vecs map[string]Vector, word1, word2, word3 string, limit int) ([]WordSimilarity, error) {
 	v1, ok := vecs[word1]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word1)
@@ -114,10 +114,10 @@ func Analogy(vecs map[string]Vector, word1, word2, word3 string, limit int) ([]W
 		word3: nil,
 	}
 
-	return distance(vecs, v4, skips, limit)
+	return similarity(vecs, v4, skips, limit)
 }
 
-func Distance(vecs map[string]Vector, word string, limit int) ([]WordDistance, error) {
+func Similarity(vecs map[string]Vector, word string, limit int) ([]WordSimilarity, error) {
 	v, ok := vecs[word]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word)
@@ -127,11 +127,11 @@ func Distance(vecs map[string]Vector, word string, limit int) ([]WordDistance, e
 		word: nil,
 	}
 
-	return distance(vecs, v, skips, limit)
+	return similarity(vecs, v, skips, limit)
 }
 
-func distance(vecs map[string]Vector, vec Vector, skips map[string]interface{}, limit int) ([]WordDistance, error) {
-	results := make([]WordDistance, 0)
+func similarity(vecs map[string]Vector, vec Vector, skips map[string]interface{}, limit int) ([]WordSimilarity, error) {
+	results := make([]WordSimilarity, 0)
 
 	for vecWord, w := range vecs {
 		// Skip words in the skip set.
@@ -140,22 +140,22 @@ func distance(vecs map[string]Vector, vec Vector, skips map[string]interface{}, 
 			continue
 		}
 
-		dist := dotProduct(vec, w)
+		sim := dotProduct(vec, w)
 
 		ip := sort.Search(len(results), func(i int) bool {
-			return results[i].Distance <= dist
+			return results[i].Similarity <= sim
 		})
 		if ip < limit {
-			results = insertWithLimit(results, limit, ip, WordDistance{vecWord, dist})
+			results = insertWithLimit(results, limit, ip, WordSimilarity{vecWord, sim})
 		}
 	}
 
 	return results, nil
 }
 
-func insertWithLimit(slice []WordDistance, limit, index int, value WordDistance) []WordDistance {
+func insertWithLimit(slice []WordSimilarity, limit, index int, value WordSimilarity) []WordSimilarity {
 	if len(slice) < limit {
-		slice = append(slice, WordDistance{})
+		slice = append(slice, WordSimilarity{})
 	}
 
 	copy(slice[index+1:], slice[index:len(slice)-1])

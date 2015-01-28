@@ -51,8 +51,8 @@ func main() {
 			continue
 		}
 
-		for _, wordDistance := range results {
-			fmt.Println(wordDistance.Word, wordDistance.Distance)
+		for _, wordSimilarity := range results {
+			fmt.Println(wordSimilarity.Word, wordSimilarity.Similarity)
 		}
 	}
 }

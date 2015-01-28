@@ -39,10 +39,10 @@ func main() {
 
 		line = strings.TrimSpace(line)
 
-		results, err := go2vec.Distance( vecs, line, 10)
+		results, err := go2vec.Similarity( vecs, line, 10)
 
-		for _, wordDistance := range results {
-			fmt.Println(wordDistance.Word, wordDistance.Distance)
+		for _, wordSimilarity := range results {
+			fmt.Println(wordSimilarity.Word, wordSimilarity.Similarity)
 		}
 	}
 }
