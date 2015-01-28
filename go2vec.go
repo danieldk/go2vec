@@ -4,16 +4,13 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
-	"io"
-	"log"
 	"math"
-	"os"
 	"sort"
 	"strings"
 )
 
 type WordSimilarity struct {
-	Word     string
+	Word       string
 	Similarity float32
 }
 
@@ -50,34 +47,6 @@ func ReadVectors(r *bufio.Reader) (map[string]Vector, error) {
 	}
 
 	return vecs, nil
-}
-
-func main() {
-	f, err := os.Open("vectors.bin")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	vecs, err := ReadVectors(bufio.NewReader(io.Reader(f)))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for {
-		reader := bufio.NewReader(os.Stdin)
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			return
-		}
-
-		line = strings.TrimSpace(line)
-
-		results, err := Similarity(vecs, line, 10)
-
-		for _, wordSimilarity := range results {
-			fmt.Println(wordSimilarity.Word, wordSimilarity.Similarity)
-		}
-	}
 }
 
 func dotProduct(v, w []float32) float32 {
