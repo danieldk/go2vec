@@ -16,7 +16,9 @@ type WordSimilarity struct {
 
 type Vector []float32
 
-func ReadVectors(r *bufio.Reader) (map[string]Vector, error) {
+type Vectors map[string]Vector
+
+func ReadVectors(r *bufio.Reader) (Vectors, error) {
 	var nWords uint64
 	_, err := fmt.Fscanf(r, "%d", &nWords)
 	if err != nil {
@@ -29,7 +31,7 @@ func ReadVectors(r *bufio.Reader) (map[string]Vector, error) {
 		return nil, err
 	}
 
-	vecs := make(map[string]Vector)
+	vecs := make(Vectors)
 
 	for w := uint64(0); w < nWords; w++ {
 		word, err := r.ReadString(' ')
@@ -59,7 +61,7 @@ func dotProduct(v, w []float32) float32 {
 	return sum
 }
 
-func Analogy(vecs map[string]Vector, word1, word2, word3 string, limit int) ([]WordSimilarity, error) {
+func (vecs Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimilarity, error) {
 	v1, ok := vecs[word1]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word1)
@@ -83,10 +85,10 @@ func Analogy(vecs map[string]Vector, word1, word2, word3 string, limit int) ([]W
 		word3: nil,
 	}
 
-	return similarity(vecs, v4, skips, limit)
+	return vecs.similarity(v4, skips, limit)
 }
 
-func Similarity(vecs map[string]Vector, word string, limit int) ([]WordSimilarity, error) {
+func (vecs Vectors) Similarity(word string, limit int) ([]WordSimilarity, error) {
 	v, ok := vecs[word]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word)
@@ -96,10 +98,10 @@ func Similarity(vecs map[string]Vector, word string, limit int) ([]WordSimilarit
 		word: nil,
 	}
 
-	return similarity(vecs, v, skips, limit)
+	return vecs.similarity(v, skips, limit)
 }
 
-func similarity(vecs map[string]Vector, vec Vector, skips map[string]interface{}, limit int) ([]WordSimilarity, error) {
+func (vecs Vectors) similarity(vec Vector, skips map[string]interface{}, limit int) ([]WordSimilarity, error) {
 	results := make([]WordSimilarity, 0)
 
 	for vecWord, w := range vecs {
