@@ -20,14 +20,12 @@ type Vectors map[string]Vector
 
 func ReadVectors(r *bufio.Reader) (Vectors, error) {
 	var nWords uint64
-	_, err := fmt.Fscanf(r, "%d", &nWords)
-	if err != nil {
+	if _, err := fmt.Fscanf(r, "%d", &nWords); err != nil {
 		return nil, err
 	}
 
 	var vSize uint64
-	_, err = fmt.Fscanf(r, "%d", &vSize)
-	if err != nil {
+	if _, err := fmt.Fscanf(r, "%d", &vSize); err != nil {
 		return nil, err
 	}
 
@@ -38,8 +36,7 @@ func ReadVectors(r *bufio.Reader) (Vectors, error) {
 		word = strings.TrimSpace(word)
 		vec := make([]float32, vSize)
 
-		err = binary.Read(r, binary.LittleEndian, vec)
-		if err != nil {
+		if err = binary.Read(r, binary.LittleEndian, vec); err != nil {
 			return nil, err
 		}
 
@@ -106,8 +103,7 @@ func (vecs Vectors) similarity(vec Vector, skips map[string]interface{}, limit i
 
 	for vecWord, w := range vecs {
 		// Skip words in the skip set.
-		_, ok := skips[vecWord]
-		if ok {
+		if _, ok := skips[vecWord]; ok {
 			continue
 		}
 
