@@ -48,6 +48,39 @@ func ReadVectors(r *bufio.Reader) (Vectors, error) {
 	return vecs, nil
 }
 
+func (vectors Vectors) Write(w *bufio.Writer) error {
+	nWords := uint64(len(vectors))
+	if nWords == 0 {
+		return nil
+	}
+
+	var vSize uint64
+	for _, vec := range vectors {
+		vSize = uint64(len(vec))
+		break
+	}
+
+	if vSize == 0 {
+		return nil
+	}
+
+	if _, err := fmt.Fprintf(w, "%d %d\n", nWords, vSize); err != nil {
+		return err
+	}
+
+	for word, vec := range vectors {
+		if _, err := w.WriteString(word + " "); err != nil {
+			return err
+		}
+
+		if err := binary.Write(w, binary.LittleEndian, vec); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func dotProduct(v, w []float32) float32 {
 	sum := float32(0)
 
