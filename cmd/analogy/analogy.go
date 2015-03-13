@@ -31,14 +31,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for {
-		reader := bufio.NewReader(os.Stdin)
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			return
-		}
-
-		line = strings.TrimSpace(line)
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanLines)
+	for scanner.Scan() {
+		line := scanner.Text()
 
 		parts := strings.Split(line, " ")
 		if len(parts) != 3 {
