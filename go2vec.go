@@ -16,9 +16,14 @@ type WordSimilarity struct {
 
 type Vector []float32
 
-type Vectors map[string]Vector
+type Vectors struct {
+	matrix  []float32
+	vecSize uint64
+	indices map[string]uint64
+	words   []string
+}
 
-func ReadVectors(r *bufio.Reader) (Vectors, error) {
+func ReadVectors(r *bufio.Reader) (*Vectors, error) {
 	var nWords uint64
 	if _, err := fmt.Fscanf(r, "%d", &nWords); err != nil {
 		return nil, err
@@ -29,51 +34,52 @@ func ReadVectors(r *bufio.Reader) (Vectors, error) {
 		return nil, err
 	}
 
-	vecs := make(Vectors)
+	matrix := make([]float32, nWords*vSize)
+	indices := make(map[string]uint64)
+	words := make([]string, nWords)
 
-	for w := uint64(0); w < nWords; w++ {
+	for idx := uint64(0); idx < nWords; idx++ {
 		word, err := r.ReadString(' ')
 		word = strings.TrimSpace(word)
-		vec := make([]float32, vSize)
+		indices[word] = idx
+		words[idx] = word
 
-		if err = binary.Read(r, binary.LittleEndian, vec); err != nil {
+		start := idx * vSize
+		if err = binary.Read(r, binary.LittleEndian, matrix[start:start+vSize]); err != nil {
 			return nil, err
 		}
 
-		normalize(vec)
-
-		vecs[word] = vec
+		normalize(matrix[start : start+vSize])
 	}
 
-	return vecs, nil
+	return &Vectors{
+		matrix:  matrix,
+		vecSize: vSize,
+		indices: indices,
+		words:   words,
+	}, nil
 }
 
-func (vectors Vectors) Write(w *bufio.Writer) error {
-	nWords := uint64(len(vectors))
+func (vectors *Vectors) Write(w *bufio.Writer) error {
+	nWords := len(vectors.words)
 	if nWords == 0 {
 		return nil
 	}
 
-	var vSize uint64
-	for _, vec := range vectors {
-		vSize = uint64(len(vec))
-		break
-	}
-
-	if vSize == 0 {
+	if vectors.vecSize == 0 {
 		return nil
 	}
 
-	if _, err := fmt.Fprintf(w, "%d %d\n", nWords, vSize); err != nil {
+	if _, err := fmt.Fprintf(w, "%d %d\n", nWords, vectors.vecSize); err != nil {
 		return err
 	}
 
-	for word, vec := range vectors {
+	for word, idx := range vectors.indices {
 		if _, err := w.WriteString(word + " "); err != nil {
 			return err
 		}
 
-		if err := binary.Write(w, binary.LittleEndian, vec); err != nil {
+		if err := binary.Write(w, binary.LittleEndian, vectors.lookupIdx(idx)); err != nil {
 			return err
 		}
 	}
@@ -91,62 +97,71 @@ func dotProduct(v, w []float32) float32 {
 	return sum
 }
 
-func (vecs Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimilarity, error) {
-	v1, ok := vecs[word1]
+func (v *Vectors) lookupIdx(idx uint64) Vector {
+	start := idx * v.vecSize
+	return v.matrix[start : start+v.vecSize]
+}
+
+func (vecs *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimilarity, error) {
+	idx1, ok := vecs.indices[word1]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word1)
 	}
 
-	v2, ok := vecs[word2]
+	idx2, ok := vecs.indices[word2]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word2)
 	}
 
-	v3, ok := vecs[word3]
+	idx3, ok := vecs.indices[word3]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word3)
 	}
 
+	v1 := vecs.lookupIdx(idx1)
+	v2 := vecs.lookupIdx(idx2)
+	v3 := vecs.lookupIdx(idx3)
+
 	v4 := plus(minus(v2, v1), v3)
 
-	skips := map[string]interface{}{
-		word1: nil,
-		word2: nil,
-		word3: nil,
+	skips := map[uint64]interface{}{
+		idx1: nil,
+		idx2: nil,
+		idx2: nil,
 	}
 
 	return vecs.similarity(v4, skips, limit)
 }
 
 func (vecs Vectors) Similarity(word string, limit int) ([]WordSimilarity, error) {
-	v, ok := vecs[word]
+	idx, ok := vecs.indices[word]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word)
 	}
 
-	skips := map[string]interface{}{
-		word: nil,
+	skips := map[uint64]interface{}{
+		idx: nil,
 	}
 
-	return vecs.similarity(v, skips, limit)
+	return vecs.similarity(vecs.lookupIdx(idx), skips, limit)
 }
 
-func (vecs Vectors) similarity(vec Vector, skips map[string]interface{}, limit int) ([]WordSimilarity, error) {
+func (vecs Vectors) similarity(vec Vector, skips map[uint64]interface{}, limit int) ([]WordSimilarity, error) {
 	results := make([]WordSimilarity, 0)
 
-	for vecWord, w := range vecs {
+	for idx := uint64(0); idx < uint64(len(vecs.words)); idx++ {
 		// Skip words in the skip set.
-		if _, ok := skips[vecWord]; ok {
+		if _, ok := skips[idx]; ok {
 			continue
 		}
 
-		sim := dotProduct(vec, w)
+		sim := dotProduct(vec, vecs.lookupIdx(idx))
 
 		ip := sort.Search(len(results), func(i int) bool {
 			return results[i].Similarity <= sim
 		})
 		if ip < limit {
-			results = insertWithLimit(results, limit, ip, WordSimilarity{vecWord, sim})
+			results = insertWithLimit(results, limit, ip, WordSimilarity{vecs.words[idx], sim})
 		}
 	}
 
