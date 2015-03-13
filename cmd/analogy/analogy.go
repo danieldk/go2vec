@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/danieldk/go2vec"
 	"io"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/danieldk/go2vec"
 )
 
 func main() {
@@ -45,7 +46,7 @@ func main() {
 			continue
 		}
 
-		results, err := go2vec.Analogy(vecs, parts[0], parts[1], parts[2], 10)
+		results, err := vecs.Analogy(parts[0], parts[1], parts[2], 10)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
