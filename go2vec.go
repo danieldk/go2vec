@@ -127,7 +127,7 @@ func (vecs *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimil
 	skips := map[uint64]interface{}{
 		idx1: nil,
 		idx2: nil,
-		idx2: nil,
+		idx3: nil,
 	}
 
 	return vecs.similarity(v4, skips, limit)
