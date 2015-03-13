@@ -1,14 +1,14 @@
 package main
 
 import (
-	"github.com/danieldk/go2vec"
 	"bufio"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"strings"
+
+	"github.com/danieldk/go2vec"
 )
 
 func main() {
@@ -30,20 +30,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for {
-		reader := bufio.NewReader(os.Stdin)
-		line, err := reader.ReadString('\n')
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanWords)
+	for scanner.Scan() {
+		token := scanner.Text()
+		results, err := vecs.Similarity(token, 10)
 		if err != nil {
-			return
+			fmt.Println(os.Stderr, err.Error())
+			os.Exit(1)
 		}
-
-		line = strings.TrimSpace(line)
-
-		results, err := go2vec.Similarity( vecs, line, 10)
 
 		for _, wordSimilarity := range results {
 			fmt.Println(wordSimilarity.Word, wordSimilarity.Similarity)
 		}
 	}
 }
-
