@@ -37,6 +37,7 @@ type Vectors struct {
 	words   []string
 }
 
+// Read vectors from a binary file produced by word2vec.
 func ReadVectors(r *bufio.Reader) (*Vectors, error) {
 	var nWords uint64
 	if _, err := fmt.Fscanf(r, "%d", &nWords); err != nil {
@@ -74,6 +75,7 @@ func ReadVectors(r *bufio.Reader) (*Vectors, error) {
 	}, nil
 }
 
+// Write vectors to a binary file accepted by word2vec
 func (vectors *Vectors) Write(w *bufio.Writer) error {
 	nWords := len(vectors.words)
 	if nWords == 0 {
@@ -101,21 +103,14 @@ func (vectors *Vectors) Write(w *bufio.Writer) error {
 	return nil
 }
 
-func dotProduct(v, w []float32) float32 {
-	sum := float32(0)
-
-	for idx, val := range v {
-		sum += val * w[idx]
-	}
-
-	return sum
-}
-
-func (v *Vectors) lookupIdx(idx uint64) Vector {
-	start := idx * v.vecSize
-	return v.matrix[start : start+v.vecSize]
-}
-
+// Consider an analogy of the form 'word1' is to 'word2' as 'word3' is to
+// 'word4'. This method returns candidates for 'word4' based on 'word1..3'.
+//
+// If 'v1' is the vector of 'word1', etc., then the vector
+// 'v4 = (v2 - v1) + v3' is computed. Then the words with vectors that are
+// the most similar to v4 are returned.
+//
+// The query words are never returned as a result.
 func (vecs *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimilarity, error) {
 	idx1, ok := vecs.indices[word1]
 	if !ok {
@@ -147,6 +142,11 @@ func (vecs *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimil
 	return vecs.similarity(v4, skips, limit)
 }
 
+// Find words that have vectors that are similar to that of the given word.
+// The 'limit' argument specifis how many words should be returned. The
+// returned slice is ordered by similarity.
+//
+// The query word is never returned as a result.
 func (vecs Vectors) Similarity(word string, limit int) ([]WordSimilarity, error) {
 	idx, ok := vecs.indices[word]
 	if !ok {
@@ -182,6 +182,16 @@ func (vecs Vectors) similarity(vec Vector, skips map[uint64]interface{}, limit i
 	return results, nil
 }
 
+func dotProduct(v, w []float32) float32 {
+	sum := float32(0)
+
+	for idx, val := range v {
+		sum += val * w[idx]
+	}
+
+	return sum
+}
+
 func insertWithLimit(slice []WordSimilarity, limit, index int, value WordSimilarity) []WordSimilarity {
 	if len(slice) < limit {
 		slice = append(slice, WordSimilarity{})
@@ -190,6 +200,12 @@ func insertWithLimit(slice []WordSimilarity, limit, index int, value WordSimilar
 	copy(slice[index+1:], slice[index:len(slice)-1])
 	slice[index] = value
 	return slice
+}
+
+// Look up the vector at the given index.
+func (v *Vectors) lookupIdx(idx uint64) Vector {
+	start := idx * v.vecSize
+	return v.matrix[start : start+v.vecSize]
 }
 
 func minus(v, w []float32) []float32 {
@@ -202,6 +218,7 @@ func minus(v, w []float32) []float32 {
 	return result
 }
 
+// Normalize a vector using its l2-norm.
 func normalize(vec []float32) {
 	// Normalize
 	vecLen := float32(0)
