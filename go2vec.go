@@ -23,6 +23,8 @@ import (
 	"strings"
 )
 
+type IterFunc func(word string, vector []float32) bool
+
 type WordSimilarity struct {
 	Word       string
 	Similarity float32
@@ -142,6 +144,14 @@ func (vecs *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimil
 	return vecs.similarity(v4, skips, limit)
 }
 
+func (v *Vectors) Iterate(f IterFunc) {
+	for idx, word := range v.words {
+		if !f(word, v.lookupIdx(uint64(idx))) {
+			break
+		}
+	}
+}
+
 // Find words that have vectors that are similar to that of the given word.
 // The 'limit' argument specifis how many words should be returned. The
 // returned slice is ordered by similarity.
@@ -158,6 +168,14 @@ func (vecs Vectors) Similarity(word string, limit int) ([]WordSimilarity, error)
 	}
 
 	return vecs.similarity(vecs.lookupIdx(idx), skips, limit)
+}
+
+func (v *Vectors) Vector(word string) ([]float32, bool) {
+	if idx, ok := v.indices[word]; ok {
+		return v.lookupIdx(idx), true
+	}
+
+	return nil, false
 }
 
 func (vecs Vectors) similarity(vec Vector, skips map[uint64]interface{}, limit int) ([]WordSimilarity, error) {
