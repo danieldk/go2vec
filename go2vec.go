@@ -39,6 +39,17 @@ type Vectors struct {
 	words   []string
 }
 
+// Create new vectors from scratch, to be used in combination
+// with 'PutVector'.
+func NewVectors(vecSize uint64) *Vectors {
+	return &Vectors{
+		matrix:  make([]float32, 0),
+		vecSize: vecSize,
+		indices: make(map[string]uint64),
+		words:   make([]string, 0),
+	}
+}
+
 // Read vectors from a binary file produced by word2vec.
 func ReadVectors(r *bufio.Reader) (*Vectors, error) {
 	var nWords uint64
@@ -150,6 +161,25 @@ func (v *Vectors) Iterate(f IterFunc) {
 			break
 		}
 	}
+}
+
+func (v *Vectors) Put(word string, vector []float32) error {
+	if uint64(len(vector)) != v.vecSize {
+		return fmt.Errorf("Expected vector size: %d, got: %d", v.vecSize, len(vector))
+	}
+
+	if idx, ok := v.indices[word]; ok {
+		// The word is already known, replace its vector.
+		copy(v.matrix[idx*v.vecSize:], vector)
+	} else {
+		// The word is not known, add it and allocate memory.
+		idx = uint64(len(v.words))
+		v.indices[word] = idx
+		v.words = append(v.words, word)
+		v.matrix = append(v.matrix, vector...)
+	}
+
+	return nil
 }
 
 // Find words that have vectors that are similar to that of the given word.
