@@ -200,12 +200,28 @@ func (vecs Vectors) Similarity(word string, limit int) ([]WordSimilarity, error)
 	return vecs.similarity(vecs.lookupIdx(idx), skips, limit)
 }
 
+func (v *Vectors) Size() uint64 {
+	return uint64(len(v.indices))
+}
+
 func (v *Vectors) Vector(word string) ([]float32, bool) {
 	if idx, ok := v.indices[word]; ok {
 		return v.lookupIdx(idx), true
 	}
 
 	return nil, false
+}
+
+func (v *Vectors) VectorSize() uint64 {
+	return v.vecSize
+}
+
+func (v *Vectors) WordIdx(word string) (uint64, bool) {
+	if idx, ok := v.indices[word]; ok {
+		return idx, ok
+	}
+
+	return 0, false
 }
 
 func (vecs Vectors) similarity(vec Vector, skips map[uint64]interface{}, limit int) ([]WordSimilarity, error) {
