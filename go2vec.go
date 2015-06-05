@@ -103,12 +103,12 @@ func (vectors *Vectors) Write(w *bufio.Writer) error {
 		return err
 	}
 
-	for word, idx := range vectors.indices {
+	for idx, word := range vectors.words {
 		if _, err := w.WriteString(word + " "); err != nil {
 			return err
 		}
 
-		if err := binary.Write(w, binary.LittleEndian, vectors.lookupIdx(idx)); err != nil {
+		if err := binary.Write(w, binary.LittleEndian, vectors.lookupIdx(uint64(idx))); err != nil {
 			return err
 		}
 	}
