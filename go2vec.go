@@ -51,7 +51,7 @@ func NewVectors(vecSize uint64) *Vectors {
 }
 
 // Read vectors from a binary file produced by word2vec.
-func ReadVectors(r *bufio.Reader) (*Vectors, error) {
+func ReadVectors(r *bufio.Reader, normalize bool) (*Vectors, error) {
 	var nWords uint64
 	if _, err := fmt.Fscanf(r, "%d", &nWords); err != nil {
 		return nil, err
@@ -77,7 +77,9 @@ func ReadVectors(r *bufio.Reader) (*Vectors, error) {
 			return nil, err
 		}
 
-		normalize(matrix[start : start+vSize])
+		if normalize {
+			normalizeVectors(matrix[start : start+vSize])
+		}
 	}
 
 	return &Vectors{
@@ -283,7 +285,7 @@ func minus(v, w []float32) []float32 {
 }
 
 // Normalize a vector using its l2-norm.
-func normalize(vec []float32) {
+func normalizeVectors(vec []float32) {
 	// Normalize
 	vecLen := float32(0)
 	for _, val := range vec {
