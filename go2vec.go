@@ -21,10 +21,15 @@ import (
 	"math"
 	"sort"
 	"strings"
+
+	"github.com/gonum/blas"
+	cblas "github.com/gonum/blas/cgo"
 )
 
+// Function for iterating over all word embeddings.
 type IterFunc func(word string, vector []float32) bool
 
+// The similarity of a word compared to a query word.
 type WordSimilarity struct {
 	Word       string
 	Similarity float32
@@ -32,7 +37,9 @@ type WordSimilarity struct {
 
 type Vector []float32
 
+// Word embeddings/vectors.
 type Vectors struct {
+	blas    blas.Float32Level2
 	matrix  []float32
 	vecSize uint64
 	indices map[string]uint64
@@ -43,6 +50,7 @@ type Vectors struct {
 // with 'PutVector'.
 func NewVectors(vecSize uint64) *Vectors {
 	return &Vectors{
+		blas:    cblas.Implementation{},
 		matrix:  make([]float32, 0),
 		vecSize: vecSize,
 		indices: make(map[string]uint64),
@@ -83,6 +91,7 @@ func ReadVectors(r *bufio.Reader, normalize bool) (*Vectors, error) {
 	}
 
 	return &Vectors{
+		blas:    cblas.Implementation{},
 		matrix:  matrix,
 		vecSize: vSize,
 		indices: indices,
@@ -157,6 +166,11 @@ func (vecs *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimil
 	return vecs.similarity(v4, skips, limit)
 }
 
+// Set the BLAS implementation to use (default: C BLAS).
+func (v *Vectors) SetBLAS(impl blas.Float32Level2) {
+	v.blas = impl
+}
+
 func (v *Vectors) Iterate(f IterFunc) {
 	for idx, word := range v.words {
 		if !f(word, v.lookupIdx(uint64(idx))) {
@@ -227,15 +241,16 @@ func (v *Vectors) WordIdx(word string) (uint64, bool) {
 }
 
 func (vecs Vectors) similarity(vec Vector, skips map[uint64]interface{}, limit int) ([]WordSimilarity, error) {
-	results := make([]WordSimilarity, 0)
+	dps := make([]float32, vecs.Size())
+	vecs.blas.Sgemv(blas.NoTrans, int(vecs.Size()), int(vecs.VectorSize()),
+		1, vecs.matrix, int(vecs.VectorSize()), vec, 1, 0, dps, 1)
 
-	for idx := uint64(0); idx < uint64(len(vecs.words)); idx++ {
+	results := make([]WordSimilarity, 0)
+	for idx, sim := range dps {
 		// Skip words in the skip set.
-		if _, ok := skips[idx]; ok {
+		if _, ok := skips[uint64(idx)]; ok {
 			continue
 		}
-
-		sim := dotProduct(vec, vecs.lookupIdx(idx))
 
 		ip := sort.Search(len(results), func(i int) bool {
 			return results[i].Similarity <= sim
