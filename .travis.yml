@@ -1,8 +1,12 @@
 language: go
 
+env:
+  - CGO_LDFLAGS=-lblas
+
 go:
   - 1.4
   - tip
+
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -qq libatlas-dev libatlas-base-dev
