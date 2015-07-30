@@ -39,7 +39,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	vecs, err := go2vec.ReadVectors(bufio.NewReader(io.Reader(f)), true)
+	vecs, err := go2vec.ReadWord2VecBinary(bufio.NewReader(io.Reader(f)), true)
 	if err != nil {
 		log.Fatal(err)
 	}

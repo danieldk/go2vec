@@ -59,7 +59,7 @@ func NewVectors(vecSize uint64) *Vectors {
 }
 
 // Read vectors from a binary file produced by word2vec.
-func ReadVectors(r *bufio.Reader, normalize bool) (*Vectors, error) {
+func ReadWord2VecBinary(r *bufio.Reader, normalize bool) (*Vectors, error) {
 	var nWords uint64
 	if _, err := fmt.Fscanf(r, "%d", &nWords); err != nil {
 		return nil, err

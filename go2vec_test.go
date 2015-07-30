@@ -97,7 +97,7 @@ func readVectorsOrFail(t *testing.T, filename string) *Vectors {
 	}
 	defer f.Close()
 
-	vecs, err := ReadVectors(bufio.NewReader(f), true)
+	vecs, err := ReadWord2VecBinary(bufio.NewReader(f), true)
 	if err != nil {
 		t.Fatal(err)
 	}

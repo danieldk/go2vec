@@ -23,7 +23,7 @@ func main() {
 	common.ExitIfError("Cannot open file: ", err)
 	defer f.Close()
 
-	vectors, err := go2vec.ReadVectors(bufio.NewReader(f), true)
+	vectors, err := go2vec.ReadWord2VecBinary(bufio.NewReader(f), true)
 	common.ExitIfError("Cannot read vectors: ", err)
 
 	//fmt.Printf("%d %d\n", vectors.Size(), vectors.VectorSize())
