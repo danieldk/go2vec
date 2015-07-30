@@ -28,7 +28,7 @@ import (
 
 // IterFunc is a function for iterating over word embeddings. The function
 // should return 'false' if the iteration should be stopped.
-type IterFunc func(word string, vector []float32) bool
+type IterFunc func(word string, embedding []float32) bool
 
 // WordSimilarity stores the similarity of a word compared to a query word.
 type WordSimilarity struct {
@@ -36,33 +36,35 @@ type WordSimilarity struct {
 	Similarity float32
 }
 
-// Vector is an word embedding.
-type Vector []float32
+// Embedding stores word representations in continuous space.
+type Embedding []float32
 
-// Vectors stores embeddings for words.
-type Vectors struct {
-	blas    blas.Float32Level2
-	matrix  []float32
-	vecSize int
-	indices map[string]int
-	words   []string
+// Embeddings is used to store a set of word embeddings, such that common
+// operations can be performed on these embeddings (such as retrieving
+// similar words).
+type Embeddings struct {
+	blas      blas.Float32Level2
+	matrix    []float32
+	embedSize int
+	indices   map[string]int
+	words     []string
 }
 
-// NewVectors creates a set of word embeddings from scratch. This constructor
+// NewEmbeddings creates a set of word embeddings from scratch. This constructor
 // should be used in conjunction with 'Put' to populate the embeddings.
-func NewVectors(vecSize int) *Vectors {
-	return &Vectors{
-		blas:    cblas.Implementation{},
-		matrix:  make([]float32, 0),
-		vecSize: vecSize,
-		indices: make(map[string]int),
-		words:   make([]string, 0),
+func NewEmbeddings(embedSize int) *Embeddings {
+	return &Embeddings{
+		blas:      cblas.Implementation{},
+		matrix:    make([]float32, 0),
+		embedSize: embedSize,
+		indices:   make(map[string]int),
+		words:     make([]string, 0),
 	}
 }
 
 // ReadWord2VecBinary reads word embeddings from a binary file that is produced
-// by word2vec. The vectors can be normalized using their L2 norms.
-func ReadWord2VecBinary(r *bufio.Reader, normalize bool) (*Vectors, error) {
+// by word2vec. The embeddings can be normalized using their L2 norms.
+func ReadWord2VecBinary(r *bufio.Reader, normalize bool) (*Embeddings, error) {
 	var nWords uint64
 	if _, err := fmt.Fscanf(r, "%d", &nWords); err != nil {
 		return nil, err
@@ -89,40 +91,40 @@ func ReadWord2VecBinary(r *bufio.Reader, normalize bool) (*Vectors, error) {
 		}
 
 		if normalize {
-			normalizeVectors(matrix[start : start+int(vSize)])
+			normalizeEmbeddings(matrix[start : start+int(vSize)])
 		}
 	}
 
-	return &Vectors{
-		blas:    cblas.Implementation{},
-		matrix:  matrix,
-		vecSize: int(vSize),
-		indices: indices,
-		words:   words,
+	return &Embeddings{
+		blas:      cblas.Implementation{},
+		matrix:    matrix,
+		embedSize: int(vSize),
+		indices:   indices,
+		words:     words,
 	}, nil
 }
 
-// Write vectors to a binary file accepted by word2vec
-func (v *Vectors) Write(w *bufio.Writer) error {
-	nWords := len(v.words)
+// Write embeddings to a binary file accepted by word2vec
+func (e *Embeddings) Write(w *bufio.Writer) error {
+	nWords := len(e.words)
 	if nWords == 0 {
 		return nil
 	}
 
-	if v.vecSize == 0 {
+	if e.embedSize == 0 {
 		return nil
 	}
 
-	if _, err := fmt.Fprintf(w, "%d %d\n", nWords, v.vecSize); err != nil {
+	if _, err := fmt.Fprintf(w, "%d %d\n", nWords, e.embedSize); err != nil {
 		return err
 	}
 
-	for idx, word := range v.words {
+	for idx, word := range e.words {
 		if _, err := w.WriteString(word + " "); err != nil {
 			return err
 		}
 
-		if err := binary.Write(w, binary.LittleEndian, v.lookupIdx(idx)); err != nil {
+		if err := binary.Write(w, binary.LittleEndian, e.lookupIdx(idx)); err != nil {
 			return err
 		}
 	}
@@ -135,30 +137,30 @@ func (v *Vectors) Write(w *bufio.Writer) error {
 // Consider an analogy of the form 'word1' is to 'word2' as 'word3' is to
 // 'word4'. This method returns candidates for 'word4' based on 'word1..3'.
 //
-// If 'v1' is the vector of 'word1', etc., then the vector
-// 'v4 = (v2 - v1) + v3' is computed. Then the words with vectors that are
-// the most similar to v4 are returned.
+// If 'e1' is the embedding of 'word1', etc., then the embedding
+// 'e4 = (e2 - e1) + e3' is computed. Then the words with embeddings that are
+// the most similar to e4 are returned.
 //
 // The query words are never returned as a result.
-func (v *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimilarity, error) {
-	idx1, ok := v.indices[word1]
+func (e *Embeddings) Analogy(word1, word2, word3 string, limit int) ([]WordSimilarity, error) {
+	idx1, ok := e.indices[word1]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word1)
 	}
 
-	idx2, ok := v.indices[word2]
+	idx2, ok := e.indices[word2]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word2)
 	}
 
-	idx3, ok := v.indices[word3]
+	idx3, ok := e.indices[word3]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word3)
 	}
 
-	v1 := v.lookupIdx(idx1)
-	v2 := v.lookupIdx(idx2)
-	v3 := v.lookupIdx(idx3)
+	v1 := e.lookupIdx(idx1)
+	v2 := e.lookupIdx(idx2)
+	v3 := e.lookupIdx(idx3)
 
 	v4 := plus(minus(v2, v1), v3)
 
@@ -168,18 +170,18 @@ func (v *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimilari
 		idx3: nil,
 	}
 
-	return v.similarity(v4, skips, limit)
+	return e.similarity(v4, skips, limit)
 }
 
 // SetBLAS sets the BLAS implementation to use (default: C BLAS).
-func (v *Vectors) SetBLAS(impl blas.Float32Level2) {
-	v.blas = impl
+func (e *Embeddings) SetBLAS(impl blas.Float32Level2) {
+	e.blas = impl
 }
 
 // Iterate applies the provided iteration function to all word embeddings.
-func (v *Vectors) Iterate(f IterFunc) {
-	for idx, word := range v.words {
-		if !f(word, v.lookupIdx(idx)) {
+func (e *Embeddings) Iterate(f IterFunc) {
+	for idx, word := range e.words {
+		if !f(word, e.lookupIdx(idx)) {
 			break
 		}
 	}
@@ -187,19 +189,19 @@ func (v *Vectors) Iterate(f IterFunc) {
 
 // Put adds a word embedding to the word embeddings. The new word can be
 // queried after the call returns.
-func (v *Vectors) Put(word string, vector []float32) error {
-	if len(vector) != v.vecSize {
-		return fmt.Errorf("Expected vector size: %d, got: %d", v.vecSize, len(vector))
+func (e *Embeddings) Put(word string, embedding []float32) error {
+	if len(embedding) != e.embedSize {
+		return fmt.Errorf("Expected embedding size: %d, got: %d", e.embedSize, len(embedding))
 	}
 
-	if idx, ok := v.indices[word]; ok {
-		// The word is already known, replace its vector.
-		copy(v.matrix[idx*v.vecSize:], vector)
+	if idx, ok := e.indices[word]; ok {
+		// The word is already known, replace its embedding.
+		copy(e.matrix[idx*e.embedSize:], embedding)
 	} else {
 		// The word is not known, add it and allocate memory.
-		v.indices[word] = len(v.words)
-		v.words = append(v.words, word)
-		v.matrix = append(v.matrix, vector...)
+		e.indices[word] = len(e.words)
+		e.words = append(e.words, word)
+		e.matrix = append(e.matrix, embedding...)
 	}
 
 	return nil
@@ -210,8 +212,8 @@ func (v *Vectors) Put(word string, vector []float32) error {
 // returned. The returned slice is ordered by similarity.
 //
 // The query word is never returned as a result.
-func (v Vectors) Similarity(word string, limit int) ([]WordSimilarity, error) {
-	idx, ok := v.indices[word]
+func (e Embeddings) Similarity(word string, limit int) ([]WordSimilarity, error) {
+	idx, ok := e.indices[word]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word)
 	}
@@ -220,42 +222,42 @@ func (v Vectors) Similarity(word string, limit int) ([]WordSimilarity, error) {
 		idx: nil,
 	}
 
-	return v.similarity(v.lookupIdx(idx), skips, limit)
+	return e.similarity(e.lookupIdx(idx), skips, limit)
 }
 
 // Size returns the number of words in the embeddings.
-func (v *Vectors) Size() int {
-	return len(v.indices)
+func (e *Embeddings) Size() int {
+	return len(e.indices)
 }
 
-// Vector returns the embedding for a particular word. If the word is
+// Embedding returns the embedding for a particular word. If the word is
 // unknown, the second return value will be false.
-func (v *Vectors) Vector(word string) ([]float32, bool) {
-	if idx, ok := v.indices[word]; ok {
-		return v.lookupIdx(idx), true
+func (e *Embeddings) Embedding(word string) ([]float32, bool) {
+	if idx, ok := e.indices[word]; ok {
+		return e.lookupIdx(idx), true
 	}
 
 	return nil, false
 }
 
-// VectorSize returns the embedding size.
-func (v *Vectors) VectorSize() int {
-	return v.vecSize
+// EmbeddingSize returns the embedding size.
+func (e *Embeddings) EmbeddingSize() int {
+	return e.embedSize
 }
 
 // WordIdx returns the index of the word within an embedding.
-func (v *Vectors) WordIdx(word string) (int, bool) {
-	if idx, ok := v.indices[word]; ok {
+func (e *Embeddings) WordIdx(word string) (int, bool) {
+	if idx, ok := e.indices[word]; ok {
 		return idx, ok
 	}
 
 	return 0, false
 }
 
-func (v Vectors) similarity(vec Vector, skips map[int]interface{}, limit int) ([]WordSimilarity, error) {
-	dps := make([]float32, v.Size())
-	v.blas.Sgemv(blas.NoTrans, int(v.Size()), int(v.VectorSize()),
-		1, v.matrix, int(v.VectorSize()), vec, 1, 0, dps, 1)
+func (e Embeddings) similarity(embed Embedding, skips map[int]interface{}, limit int) ([]WordSimilarity, error) {
+	dps := make([]float32, e.Size())
+	e.blas.Sgemv(blas.NoTrans, int(e.Size()), int(e.EmbeddingSize()),
+		1, e.matrix, int(e.EmbeddingSize()), embed, 1, 0, dps, 1)
 
 	var results []WordSimilarity
 	for idx, sim := range dps {
@@ -268,7 +270,7 @@ func (v Vectors) similarity(vec Vector, skips map[int]interface{}, limit int) ([
 			return results[i].Similarity <= sim
 		})
 		if ip < limit {
-			results = insertWithLimit(results, limit, ip, WordSimilarity{v.words[idx], sim})
+			results = insertWithLimit(results, limit, ip, WordSimilarity{e.words[idx], sim})
 		}
 	}
 
@@ -295,10 +297,10 @@ func insertWithLimit(slice []WordSimilarity, limit, index int, value WordSimilar
 	return slice
 }
 
-// Look up the vector at the given index.
-func (v *Vectors) lookupIdx(idx int) Vector {
-	start := idx * v.vecSize
-	return v.matrix[start : start+v.vecSize]
+// Look up the embedding at the given index.
+func (e *Embeddings) lookupIdx(idx int) Embedding {
+	start := idx * e.embedSize
+	return e.matrix[start : start+e.embedSize]
 }
 
 func minus(v, w []float32) []float32 {
@@ -311,18 +313,18 @@ func minus(v, w []float32) []float32 {
 	return result
 }
 
-// Normalize a vector using its l2-norm.
-func normalizeVectors(vec []float32) {
+// Normalize an embedding using its l2-norm.
+func normalizeEmbeddings(embedding []float32) {
 	// Normalize
-	vecLen := float32(0)
-	for _, val := range vec {
-		vecLen += val * val
+	embedLen := float32(0)
+	for _, val := range embedding {
+		embedLen += val * val
 	}
 
-	vecLen = float32(math.Sqrt(float64(vecLen)))
+	embedLen = float32(math.Sqrt(float64(embedLen)))
 
-	for idx, val := range vec {
-		vec[idx] = val / vecLen
+	for idx, val := range embedding {
+		embedding[idx] = val / embedLen
 	}
 }
 

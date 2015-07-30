@@ -39,7 +39,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	vecs, err := go2vec.ReadWord2VecBinary(bufio.NewReader(io.Reader(f)), true)
+	embeds, err := go2vec.ReadWord2VecBinary(bufio.NewReader(io.Reader(f)), true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func main() {
 	scanner.Split(bufio.ScanWords)
 	for scanner.Scan() {
 		token := scanner.Text()
-		results, err := vecs.Similarity(token, 10)
+		results, err := embeds.Similarity(token, 10)
 		if err != nil {
 			fmt.Println(os.Stderr, err.Error())
 			os.Exit(1)

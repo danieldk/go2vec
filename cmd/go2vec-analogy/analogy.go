@@ -40,7 +40,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	vecs, err := go2vec.ReadWord2VecBinary(bufio.NewReader(io.Reader(f)), true)
+	embeds, err := go2vec.ReadWord2VecBinary(bufio.NewReader(io.Reader(f)), true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func main() {
 			continue
 		}
 
-		results, err := vecs.Analogy(parts[0], parts[1], parts[2], 10)
+		results, err := embeds.Analogy(parts[0], parts[1], parts[2], 10)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue

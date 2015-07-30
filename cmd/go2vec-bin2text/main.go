@@ -23,15 +23,13 @@ func main() {
 	common.ExitIfError("Cannot open file: ", err)
 	defer f.Close()
 
-	vectors, err := go2vec.ReadWord2VecBinary(bufio.NewReader(f), true)
+	embeds, err := go2vec.ReadWord2VecBinary(bufio.NewReader(f), true)
 	common.ExitIfError("Cannot read vectors: ", err)
 
-	//fmt.Printf("%d %d\n", vectors.Size(), vectors.VectorSize())
-
-	vectors.Iterate(func(word string, vector []float32) bool {
+	embeds.Iterate(func(word string, embedding []float32) bool {
 		fmt.Print(word + " ")
 
-		fmt.Println(floatSliceToString(vector))
+		fmt.Println(floatSliceToString(embedding))
 
 		return true
 	})
