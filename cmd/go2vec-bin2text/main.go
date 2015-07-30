@@ -26,7 +26,7 @@ func main() {
 	embeds, err := go2vec.ReadWord2VecBinary(bufio.NewReader(f), true)
 	common.ExitIfError("Cannot read vectors: ", err)
 
-	embeds.Iterate(func(word string, embedding go2vec.Embedding) bool {
+	embeds.Iterate(func(word string, embedding []float32) bool {
 		fmt.Print(word + " ")
 
 		fmt.Println(floatSliceToString(embedding))
