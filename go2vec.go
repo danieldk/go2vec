@@ -41,19 +41,19 @@ type Vector []float32
 type Vectors struct {
 	blas    blas.Float32Level2
 	matrix  []float32
-	vecSize uint64
-	indices map[string]uint64
+	vecSize int
+	indices map[string]int
 	words   []string
 }
 
 // Create new vectors from scratch, to be used in combination
 // with 'PutVector'.
-func NewVectors(vecSize uint64) *Vectors {
+func NewVectors(vecSize int) *Vectors {
 	return &Vectors{
 		blas:    cblas.Implementation{},
 		matrix:  make([]float32, 0),
 		vecSize: vecSize,
-		indices: make(map[string]uint64),
+		indices: make(map[string]int),
 		words:   make([]string, 0),
 	}
 }
@@ -71,29 +71,29 @@ func ReadWord2VecBinary(r *bufio.Reader, normalize bool) (*Vectors, error) {
 	}
 
 	matrix := make([]float32, nWords*vSize)
-	indices := make(map[string]uint64)
+	indices := make(map[string]int)
 	words := make([]string, nWords)
 
-	for idx := uint64(0); idx < nWords; idx++ {
+	for idx := 0; idx < int(nWords); idx++ {
 		word, err := r.ReadString(' ')
 		word = strings.TrimSpace(word)
 		indices[word] = idx
 		words[idx] = word
 
-		start := idx * vSize
-		if err = binary.Read(r, binary.LittleEndian, matrix[start:start+vSize]); err != nil {
+		start := idx * int(vSize)
+		if err = binary.Read(r, binary.LittleEndian, matrix[start:start+int(vSize)]); err != nil {
 			return nil, err
 		}
 
 		if normalize {
-			normalizeVectors(matrix[start : start+vSize])
+			normalizeVectors(matrix[start : start+int(vSize)])
 		}
 	}
 
 	return &Vectors{
 		blas:    cblas.Implementation{},
 		matrix:  matrix,
-		vecSize: vSize,
+		vecSize: int(vSize),
 		indices: indices,
 		words:   words,
 	}, nil
@@ -119,7 +119,7 @@ func (vectors *Vectors) Write(w *bufio.Writer) error {
 			return err
 		}
 
-		if err := binary.Write(w, binary.LittleEndian, vectors.lookupIdx(uint64(idx))); err != nil {
+		if err := binary.Write(w, binary.LittleEndian, vectors.lookupIdx(idx)); err != nil {
 			return err
 		}
 	}
@@ -157,7 +157,7 @@ func (vecs *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimil
 
 	v4 := plus(minus(v2, v1), v3)
 
-	skips := map[uint64]interface{}{
+	skips := map[int]interface{}{
 		idx1: nil,
 		idx2: nil,
 		idx3: nil,
@@ -173,14 +173,14 @@ func (v *Vectors) SetBLAS(impl blas.Float32Level2) {
 
 func (v *Vectors) Iterate(f IterFunc) {
 	for idx, word := range v.words {
-		if !f(word, v.lookupIdx(uint64(idx))) {
+		if !f(word, v.lookupIdx(idx)) {
 			break
 		}
 	}
 }
 
 func (v *Vectors) Put(word string, vector []float32) error {
-	if uint64(len(vector)) != v.vecSize {
+	if len(vector) != v.vecSize {
 		return fmt.Errorf("Expected vector size: %d, got: %d", v.vecSize, len(vector))
 	}
 
@@ -189,8 +189,7 @@ func (v *Vectors) Put(word string, vector []float32) error {
 		copy(v.matrix[idx*v.vecSize:], vector)
 	} else {
 		// The word is not known, add it and allocate memory.
-		idx = uint64(len(v.words))
-		v.indices[word] = idx
+		v.indices[word] = len(v.words)
 		v.words = append(v.words, word)
 		v.matrix = append(v.matrix, vector...)
 	}
@@ -209,15 +208,15 @@ func (vecs Vectors) Similarity(word string, limit int) ([]WordSimilarity, error)
 		return nil, fmt.Errorf("Unknown word: %s", word)
 	}
 
-	skips := map[uint64]interface{}{
+	skips := map[int]interface{}{
 		idx: nil,
 	}
 
 	return vecs.similarity(vecs.lookupIdx(idx), skips, limit)
 }
 
-func (v *Vectors) Size() uint64 {
-	return uint64(len(v.indices))
+func (v *Vectors) Size() int {
+	return len(v.indices)
 }
 
 func (v *Vectors) Vector(word string) ([]float32, bool) {
@@ -228,11 +227,11 @@ func (v *Vectors) Vector(word string) ([]float32, bool) {
 	return nil, false
 }
 
-func (v *Vectors) VectorSize() uint64 {
+func (v *Vectors) VectorSize() int {
 	return v.vecSize
 }
 
-func (v *Vectors) WordIdx(word string) (uint64, bool) {
+func (v *Vectors) WordIdx(word string) (int, bool) {
 	if idx, ok := v.indices[word]; ok {
 		return idx, ok
 	}
@@ -240,7 +239,7 @@ func (v *Vectors) WordIdx(word string) (uint64, bool) {
 	return 0, false
 }
 
-func (vecs Vectors) similarity(vec Vector, skips map[uint64]interface{}, limit int) ([]WordSimilarity, error) {
+func (vecs Vectors) similarity(vec Vector, skips map[int]interface{}, limit int) ([]WordSimilarity, error) {
 	dps := make([]float32, vecs.Size())
 	vecs.blas.Sgemv(blas.NoTrans, int(vecs.Size()), int(vecs.VectorSize()),
 		1, vecs.matrix, int(vecs.VectorSize()), vec, 1, 0, dps, 1)
@@ -248,7 +247,7 @@ func (vecs Vectors) similarity(vec Vector, skips map[uint64]interface{}, limit i
 	results := make([]WordSimilarity, 0)
 	for idx, sim := range dps {
 		// Skip words in the skip set.
-		if _, ok := skips[uint64(idx)]; ok {
+		if _, ok := skips[idx]; ok {
 			continue
 		}
 
@@ -284,7 +283,7 @@ func insertWithLimit(slice []WordSimilarity, limit, index int, value WordSimilar
 }
 
 // Look up the vector at the given index.
-func (v *Vectors) lookupIdx(idx uint64) Vector {
+func (v *Vectors) lookupIdx(idx int) Vector {
 	start := idx * v.vecSize
 	return v.matrix[start : start+v.vecSize]
 }
