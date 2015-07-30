@@ -26,18 +26,20 @@ import (
 	cblas "github.com/gonum/blas/cgo"
 )
 
-// Function for iterating over all word embeddings.
+// IterFunc is a function for iterating over word embeddings. The function
+// should return 'false' if the iteration should be stopped.
 type IterFunc func(word string, vector []float32) bool
 
-// The similarity of a word compared to a query word.
+// WordSimilarity stores the similarity of a word compared to a query word.
 type WordSimilarity struct {
 	Word       string
 	Similarity float32
 }
 
+// Vector is an word embedding.
 type Vector []float32
 
-// Word embeddings/vectors.
+// Vectors stores embeddings for words.
 type Vectors struct {
 	blas    blas.Float32Level2
 	matrix  []float32
@@ -46,8 +48,8 @@ type Vectors struct {
 	words   []string
 }
 
-// Create new vectors from scratch, to be used in combination
-// with 'PutVector'.
+// NewVectors creates a set of word embeddings from scratch. This constructor
+// should be used in conjunction with 'Put' to populate the embeddings.
 func NewVectors(vecSize int) *Vectors {
 	return &Vectors{
 		blas:    cblas.Implementation{},
@@ -58,7 +60,8 @@ func NewVectors(vecSize int) *Vectors {
 	}
 }
 
-// Read vectors from a binary file produced by word2vec.
+// ReadWord2VecBinary reads word embeddings from a binary file that is produced
+// by word2vec. The vectors can be normalized using their L2 norms.
 func ReadWord2VecBinary(r *bufio.Reader, normalize bool) (*Vectors, error) {
 	var nWords uint64
 	if _, err := fmt.Fscanf(r, "%d", &nWords); err != nil {
@@ -100,26 +103,26 @@ func ReadWord2VecBinary(r *bufio.Reader, normalize bool) (*Vectors, error) {
 }
 
 // Write vectors to a binary file accepted by word2vec
-func (vectors *Vectors) Write(w *bufio.Writer) error {
-	nWords := len(vectors.words)
+func (v *Vectors) Write(w *bufio.Writer) error {
+	nWords := len(v.words)
 	if nWords == 0 {
 		return nil
 	}
 
-	if vectors.vecSize == 0 {
+	if v.vecSize == 0 {
 		return nil
 	}
 
-	if _, err := fmt.Fprintf(w, "%d %d\n", nWords, vectors.vecSize); err != nil {
+	if _, err := fmt.Fprintf(w, "%d %d\n", nWords, v.vecSize); err != nil {
 		return err
 	}
 
-	for idx, word := range vectors.words {
+	for idx, word := range v.words {
 		if _, err := w.WriteString(word + " "); err != nil {
 			return err
 		}
 
-		if err := binary.Write(w, binary.LittleEndian, vectors.lookupIdx(idx)); err != nil {
+		if err := binary.Write(w, binary.LittleEndian, v.lookupIdx(idx)); err != nil {
 			return err
 		}
 	}
@@ -127,6 +130,8 @@ func (vectors *Vectors) Write(w *bufio.Writer) error {
 	return nil
 }
 
+// Analogy performs word analogy queries.
+//
 // Consider an analogy of the form 'word1' is to 'word2' as 'word3' is to
 // 'word4'. This method returns candidates for 'word4' based on 'word1..3'.
 //
@@ -135,25 +140,25 @@ func (vectors *Vectors) Write(w *bufio.Writer) error {
 // the most similar to v4 are returned.
 //
 // The query words are never returned as a result.
-func (vecs *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimilarity, error) {
-	idx1, ok := vecs.indices[word1]
+func (v *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimilarity, error) {
+	idx1, ok := v.indices[word1]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word1)
 	}
 
-	idx2, ok := vecs.indices[word2]
+	idx2, ok := v.indices[word2]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word2)
 	}
 
-	idx3, ok := vecs.indices[word3]
+	idx3, ok := v.indices[word3]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word3)
 	}
 
-	v1 := vecs.lookupIdx(idx1)
-	v2 := vecs.lookupIdx(idx2)
-	v3 := vecs.lookupIdx(idx3)
+	v1 := v.lookupIdx(idx1)
+	v2 := v.lookupIdx(idx2)
+	v3 := v.lookupIdx(idx3)
 
 	v4 := plus(minus(v2, v1), v3)
 
@@ -163,14 +168,15 @@ func (vecs *Vectors) Analogy(word1, word2, word3 string, limit int) ([]WordSimil
 		idx3: nil,
 	}
 
-	return vecs.similarity(v4, skips, limit)
+	return v.similarity(v4, skips, limit)
 }
 
-// Set the BLAS implementation to use (default: C BLAS).
+// SetBLAS sets the BLAS implementation to use (default: C BLAS).
 func (v *Vectors) SetBLAS(impl blas.Float32Level2) {
 	v.blas = impl
 }
 
+// Iterate applies the provided iteration function to all word embeddings.
 func (v *Vectors) Iterate(f IterFunc) {
 	for idx, word := range v.words {
 		if !f(word, v.lookupIdx(idx)) {
@@ -179,6 +185,8 @@ func (v *Vectors) Iterate(f IterFunc) {
 	}
 }
 
+// Put adds a word embedding to the word embeddings. The new word can be
+// queried after the call returns.
 func (v *Vectors) Put(word string, vector []float32) error {
 	if len(vector) != v.vecSize {
 		return fmt.Errorf("Expected vector size: %d, got: %d", v.vecSize, len(vector))
@@ -197,13 +205,13 @@ func (v *Vectors) Put(word string, vector []float32) error {
 	return nil
 }
 
-// Find words that have vectors that are similar to that of the given word.
-// The 'limit' argument specifis how many words should be returned. The
-// returned slice is ordered by similarity.
+// Similarity finds words that have embeddings that are similar to that of
+// the given word. The 'limit' argument specifis how many words should be
+// returned. The returned slice is ordered by similarity.
 //
 // The query word is never returned as a result.
-func (vecs Vectors) Similarity(word string, limit int) ([]WordSimilarity, error) {
-	idx, ok := vecs.indices[word]
+func (v Vectors) Similarity(word string, limit int) ([]WordSimilarity, error) {
+	idx, ok := v.indices[word]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word)
 	}
@@ -212,13 +220,16 @@ func (vecs Vectors) Similarity(word string, limit int) ([]WordSimilarity, error)
 		idx: nil,
 	}
 
-	return vecs.similarity(vecs.lookupIdx(idx), skips, limit)
+	return v.similarity(v.lookupIdx(idx), skips, limit)
 }
 
+// Size returns the number of words in the embeddings.
 func (v *Vectors) Size() int {
 	return len(v.indices)
 }
 
+// Vector returns the embedding for a particular word. If the word is
+// unknown, the second return value will be false.
 func (v *Vectors) Vector(word string) ([]float32, bool) {
 	if idx, ok := v.indices[word]; ok {
 		return v.lookupIdx(idx), true
@@ -227,10 +238,12 @@ func (v *Vectors) Vector(word string) ([]float32, bool) {
 	return nil, false
 }
 
+// VectorSize returns the embedding size.
 func (v *Vectors) VectorSize() int {
 	return v.vecSize
 }
 
+// WordIdx returns the index of the word within an embedding.
 func (v *Vectors) WordIdx(word string) (int, bool) {
 	if idx, ok := v.indices[word]; ok {
 		return idx, ok
@@ -239,12 +252,12 @@ func (v *Vectors) WordIdx(word string) (int, bool) {
 	return 0, false
 }
 
-func (vecs Vectors) similarity(vec Vector, skips map[int]interface{}, limit int) ([]WordSimilarity, error) {
-	dps := make([]float32, vecs.Size())
-	vecs.blas.Sgemv(blas.NoTrans, int(vecs.Size()), int(vecs.VectorSize()),
-		1, vecs.matrix, int(vecs.VectorSize()), vec, 1, 0, dps, 1)
+func (v Vectors) similarity(vec Vector, skips map[int]interface{}, limit int) ([]WordSimilarity, error) {
+	dps := make([]float32, v.Size())
+	v.blas.Sgemv(blas.NoTrans, int(v.Size()), int(v.VectorSize()),
+		1, v.matrix, int(v.VectorSize()), vec, 1, 0, dps, 1)
 
-	results := make([]WordSimilarity, 0)
+	var results []WordSimilarity
 	for idx, sim := range dps {
 		// Skip words in the skip set.
 		if _, ok := skips[idx]; ok {
@@ -255,7 +268,7 @@ func (vecs Vectors) similarity(vec Vector, skips map[int]interface{}, limit int)
 			return results[i].Similarity <= sim
 		})
 		if ip < limit {
-			results = insertWithLimit(results, limit, ip, WordSimilarity{vecs.words[idx], sim})
+			results = insertWithLimit(results, limit, ip, WordSimilarity{v.words[idx], sim})
 		}
 	}
 
