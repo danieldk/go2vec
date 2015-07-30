@@ -212,7 +212,7 @@ func (e *Embeddings) Put(word string, embedding []float32) error {
 // returned. The returned slice is ordered by similarity.
 //
 // The query word is never returned as a result.
-func (e Embeddings) Similarity(word string, limit int) ([]WordSimilarity, error) {
+func (e *Embeddings) Similarity(word string, limit int) ([]WordSimilarity, error) {
 	idx, ok := e.indices[word]
 	if !ok {
 		return nil, fmt.Errorf("Unknown word: %s", word)
@@ -254,7 +254,7 @@ func (e *Embeddings) WordIdx(word string) (int, bool) {
 	return 0, false
 }
 
-func (e Embeddings) similarity(embed Embedding, skips map[int]interface{}, limit int) ([]WordSimilarity, error) {
+func (e *Embeddings) similarity(embed Embedding, skips map[int]interface{}, limit int) ([]WordSimilarity, error) {
 	dps := make([]float32, e.Size())
 	e.blas.Sgemv(blas.NoTrans, int(e.Size()), int(e.EmbeddingSize()),
 		1, e.matrix, int(e.EmbeddingSize()), embed, 1, 0, dps, 1)
