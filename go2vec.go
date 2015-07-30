@@ -28,7 +28,7 @@ import (
 
 // IterFunc is a function for iterating over word embeddings. The function
 // should return 'false' if the iteration should be stopped.
-type IterFunc func(word string, embedding []float32) bool
+type IterFunc func(word string, embedding Embedding) bool
 
 // WordSimilarity stores the similarity of a word compared to a query word.
 type WordSimilarity struct {
@@ -189,7 +189,7 @@ func (e *Embeddings) Iterate(f IterFunc) {
 
 // Put adds a word embedding to the word embeddings. The new word can be
 // queried after the call returns.
-func (e *Embeddings) Put(word string, embedding []float32) error {
+func (e *Embeddings) Put(word string, embedding Embedding) error {
 	if len(embedding) != e.embedSize {
 		return fmt.Errorf("Expected embedding size: %d, got: %d", e.embedSize, len(embedding))
 	}
@@ -232,7 +232,7 @@ func (e *Embeddings) Size() int {
 
 // Embedding returns the embedding for a particular word. If the word is
 // unknown, the second return value will be false.
-func (e *Embeddings) Embedding(word string) ([]float32, bool) {
+func (e *Embeddings) Embedding(word string) (Embedding, bool) {
 	if idx, ok := e.indices[word]; ok {
 		return e.lookupIdx(idx), true
 	}
