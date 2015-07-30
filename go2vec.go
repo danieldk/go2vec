@@ -36,9 +36,6 @@ type WordSimilarity struct {
 	Similarity float32
 }
 
-// Embedding stores word representations in continuous space.
-type Embedding []float32
-
 // Embeddings is used to store a set of word embeddings, such that common
 // operations can be performed on these embeddings (such as retrieving
 // similar words).
@@ -254,7 +251,7 @@ func (e *Embeddings) WordIdx(word string) (int, bool) {
 	return 0, false
 }
 
-func (e *Embeddings) similarity(embed Embedding, skips map[int]interface{}, limit int) ([]WordSimilarity, error) {
+func (e *Embeddings) similarity(embed []float32, skips map[int]interface{}, limit int) ([]WordSimilarity, error) {
 	dps := make([]float32, e.Size())
 	e.blas.Sgemv(blas.NoTrans, int(e.Size()), int(e.EmbeddingSize()),
 		1, e.matrix, int(e.EmbeddingSize()), embed, 1, 0, dps, 1)
@@ -298,7 +295,7 @@ func insertWithLimit(slice []WordSimilarity, limit, index int, value WordSimilar
 }
 
 // Look up the embedding at the given index.
-func (e *Embeddings) lookupIdx(idx int) Embedding {
+func (e *Embeddings) lookupIdx(idx int) []float32 {
 	start := idx * e.embedSize
 	return e.matrix[start : start+e.embedSize]
 }
