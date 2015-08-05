@@ -124,6 +124,8 @@ func (e *Embeddings) Write(w *bufio.Writer) error {
 		if err := binary.Write(w, binary.LittleEndian, e.lookupIdx(idx)); err != nil {
 			return err
 		}
+
+		w.WriteByte(0x0a)
 	}
 
 	return nil
