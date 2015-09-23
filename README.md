@@ -14,7 +14,7 @@ This package can be installed with the <tt>go</tt> command:
 
 To install the command-line utilities, use:
 
-    go get -x gopkg.in/danieldk/go2vec.v1/cmd/...
+    go get gopkg.in/danieldk/go2vec.v1/cmd/...
 
 The package documentation is available at:
 https://godoc.org/gopkg.in/danieldk/go2vec.v1
