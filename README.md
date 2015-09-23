@@ -6,15 +6,18 @@
 This is a package for reading word2vec vectors in Go and finding similar
 words and analogies.
 
-**Note:** This package is still new, its API may change.
-
 ## Installation
 
 This package can be installed with the <tt>go</tt> command:
 
-    go get github.com/danieldk/go2vec
+    go get gopkg.in/danieldk/go2vec.v1
 
-The package documentation is available at: http://godoc.org/github.com/danieldk/go2vec
+To install the command-line utilities, use:
+
+    go get -x gopkg.in/danieldk/go2vec.v1/cmd/...
+
+The package documentation is available at:
+https://godoc.org/gopkg.in/danieldk/go2vec.v1
 
 ## Plans
 
