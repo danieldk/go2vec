@@ -125,7 +125,9 @@ func (e *Embeddings) Write(w *bufio.Writer) error {
 			return err
 		}
 
-		w.WriteByte(0x0a)
+		if err := w.WriteByte(0x0a); err != nil {
+			return err
+		}
 	}
 
 	return nil
