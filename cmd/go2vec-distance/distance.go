@@ -50,7 +50,7 @@ func main() {
 		token := scanner.Text()
 		results, err := embeds.Similarity(token, 10)
 		if err != nil {
-			fmt.Println(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
 		}
 
