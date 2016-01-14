@@ -1,6 +1,6 @@
 ## Introduction
 
-[![GoDoc](https://godoc.org/github.com/danieldk/go2vec?status.svg)](https://godoc.org/github.com/danieldk/go2vec)
+[![GoDoc](https://godoc.org/gopkg.in/danieldk/go2vec.v1?status.svg)](https://godoc.org/gopkg.in/danieldk/go2vec.v1)
 [![Report card](http://goreportcard.com/badge/danieldk/go2vec)](http://goreportcard.com/report/danieldk/go2vec)
 [![Build Status](https://travis-ci.org/danieldk/go2vec.svg?branch=master)](https://travis-ci.org/danieldk/go2vec)
 
