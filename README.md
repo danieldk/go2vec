@@ -19,7 +19,3 @@ To install the command-line utilities, use:
 
 The package documentation is available at:
 https://godoc.org/gopkg.in/danieldk/go2vec.v1
-
-## Plans
-
-1. Stabilize the API.
