@@ -25,6 +25,8 @@ import (
 	"github.com/danieldk/go2vec"
 )
 
+var normalize = flag.Bool("normalize", true, "Normalize using L2 norm")
+
 func main() {
 	flag.Parse()
 
@@ -39,7 +41,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	embeds, err := go2vec.ReadWord2VecBinary(bufio.NewReader(io.Reader(f)), true)
+	embeds, err := go2vec.ReadWord2VecBinary(bufio.NewReader(io.Reader(f)), *normalize)
 	if err != nil {
 		log.Fatal(err)
 	}
