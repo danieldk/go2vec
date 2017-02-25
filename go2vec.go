@@ -322,6 +322,11 @@ func normalizeEmbeddings(embedding []float32) {
 		embedLen += val * val
 	}
 
+	// Cannot normalize zero-vector
+	if embedLen == 0 {
+		return
+	}
+
 	embedLen = float32(math.Sqrt(float64(embedLen)))
 
 	for idx, val := range embedding {
