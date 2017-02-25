@@ -188,6 +188,10 @@ func (e *Embeddings) Iterate(f IterFunc) {
 	}
 }
 
+func (e *Embeddings) Matrix() []float32 {
+	return e.matrix
+}
+
 // Put adds a word embedding to the word embeddings. The new word can be
 // queried after the call returns.
 func (e *Embeddings) Put(word string, embedding []float32) error {
