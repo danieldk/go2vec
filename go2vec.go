@@ -1,4 +1,4 @@
-// Copyright 2015 Daniël de Kok
+// Copyright 2015, 2017 Daniël de Kok
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package go2vec
 
 import (
 	"bufio"
+	"container/heap"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -34,6 +35,32 @@ type IterFunc func(word string, embedding []float32) bool
 type WordSimilarity struct {
 	Word       string
 	Similarity float32
+}
+
+type similarityHeap []WordSimilarity
+
+func (h similarityHeap) Len() int { return len(h) }
+
+func (h similarityHeap) Less(i, j int) bool {
+	if h[i].Similarity == h[j].Similarity {
+		return h[i].Word < h[i].Word
+	}
+
+	return h[i].Similarity < h[j].Similarity
+}
+
+func (h similarityHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+
+func (h *similarityHeap) Push(x interface{}) {
+	*h = append(*h, x.(WordSimilarity))
+}
+
+func (h *similarityHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
 }
 
 // Embeddings is used to store a set of word embeddings, such that common
@@ -264,20 +291,25 @@ func (e *Embeddings) similarity(embed []float32, skips map[int]interface{}, limi
 	e.blas.Sgemv(blas.NoTrans, int(e.Size()), int(e.EmbeddingSize()),
 		1, e.matrix, int(e.EmbeddingSize()), embed, 1, 0, dps, 1)
 
-	var results []WordSimilarity
+	results := make(similarityHeap, 0, minInt(limit, e.Size()))
+	heap.Init(&results)
+
 	for idx, sim := range dps {
 		// Skip words in the skip set.
 		if _, ok := skips[idx]; ok {
 			continue
 		}
 
-		ip := sort.Search(len(results), func(i int) bool {
-			return results[i].Similarity <= sim
-		})
-		if ip < limit {
-			results = insertWithLimit(results, limit, ip, WordSimilarity{e.words[idx], sim})
+		if results.Len() < limit {
+			heap.Push(&results, WordSimilarity{e.words[idx], sim})
+		} else if results[0].Similarity < sim {
+			heap.Pop(&results)
+			heap.Push(&results, WordSimilarity{e.words[idx], sim})
 		}
 	}
+
+	// Todo: heapsort.
+	sort.Sort(sort.Reverse(results))
 
 	return results, nil
 }
@@ -290,16 +322,6 @@ func dotProduct(v, w []float32) float32 {
 	}
 
 	return sum
-}
-
-func insertWithLimit(slice []WordSimilarity, limit, index int, value WordSimilarity) []WordSimilarity {
-	if len(slice) < limit {
-		slice = append(slice, WordSimilarity{})
-	}
-
-	copy(slice[index+1:], slice[index:len(slice)-1])
-	slice[index] = value
-	return slice
 }
 
 // Look up the embedding at the given index.
@@ -346,4 +368,12 @@ func plus(v, w []float32) []float32 {
 	}
 
 	return result
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+
+	return b
 }
