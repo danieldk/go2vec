@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/danieldk/go2vec"
-	"github.com/danieldk/go2vec/cmd/common"
+	"github.com/danieldk/go2vec/v2"
+	"github.com/danieldk/go2vec/v2/cmd/common"
 )
 
 func main() {

@@ -22,7 +22,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/danieldk/go2vec"
+	"github.com/danieldk/go2vec/v2"
 )
 
 var normalize = flag.Bool("normalize", true, "Normalize using L2 norm")

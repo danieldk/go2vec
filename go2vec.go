@@ -23,8 +23,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gonum/blas"
-	cblas "github.com/gonum/blas/cgo"
+	blas "gonum.org/v1/gonum/blas"
+	cblas "gonum.org/v1/netlib/blas/netlib"
 )
 
 // IterFunc is a function for iterating over word embeddings. The function

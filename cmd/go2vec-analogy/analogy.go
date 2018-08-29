@@ -23,7 +23,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/danieldk/go2vec"
+	"github.com/danieldk/go2vec/v2"
 )
 
 func main() {
